@@ -3,6 +3,7 @@ Command wrapper plugin to run test_package binaries in emulated environments.
 
 This plugin enables running cross-compiled binaries in emulators/simulators:
 - Android: Uses adb to push and execute binaries on an Android emulator/device
+- iOS: Uses xcrun simctl to run binaries on iOS Simulator (converts ./binary to ./binary.app/binary)
 - Emscripten: Uses node to execute WebAssembly binaries
 
 To use this plugin, compile with:
@@ -10,6 +11,17 @@ To use this plugin, compile with:
 
 Example:
     conan create . -pr:h android -c tools.build.cross_building:can_run=True
+    conan create . -pr:h ios -c tools.build.cross_building:can_run=True
+
+Starting emulators/simulators:
+
+  iOS Simulator:
+    xcrun simctl list                     # List available simulators
+    xcrun simctl boot "<simulator-name>"  # Boot a simulator (e.g. "iPhone 15")
+
+  Android Emulator:
+    emulator -list-avds                   # List available AVDs
+    emulator -avd <avd-name>              # Start emulator (e.g. emulator -avd Pixel_8_API_35)
 """
 
 import shlex
@@ -33,7 +45,22 @@ def _get_shared_libs(conanfile):
     return [str(lib) for lib in libs]
 
 
-def _android_adb_wrapper(cmd, shared_libs=None):
+def _wrap_emscripten(cmd):
+    """Wrap command to run with node for Emscripten/WebAssembly."""
+    return f"node {cmd}"
+
+
+def _wrap_ios(cmd):
+    """Wrap command to run on iOS Simulator via xcrun simctl."""
+    parts = shlex.split(cmd)
+    binary, *args = parts
+    binary_name = Path(binary).name
+    ios_binary = f"{binary}.app/{binary_name}"
+    args_str = " ".join(shlex.quote(a) for a in args)
+    return f"xcrun simctl spawn booted {ios_binary} {args_str}"
+
+
+def _wrap_android(cmd, conanfile):
     """Wrap command to run on Android emulator/device via adb."""
     parts = shlex.split(cmd)
     binary, *args = parts
@@ -46,6 +73,7 @@ def _android_adb_wrapper(cmd, shared_libs=None):
     push_cmds = [f"adb push {shlex.quote(real_binary)} {shlex.quote(remote_path)}"]
     ld_library_path = ""
 
+    shared_libs = _get_shared_libs(conanfile)
     if shared_libs:
         push_cmds.append(f"adb shell mkdir -p {REMOTE_LIBS}")
         for lib in shared_libs:
@@ -71,12 +99,11 @@ def cmd_wrapper(cmd, conanfile, **kwargs):
 
     os_name = conanfile.settings.get_safe("os")
 
-    if os_name == "Emscripten":
-        return f"node {cmd}"
+    wrappers = {
+        "Emscripten": lambda: _wrap_emscripten(cmd),
+        "iOS": lambda: _wrap_ios(cmd),
+        "Android": lambda: _wrap_android(cmd, conanfile),
+    }
 
-    if os_name == "Android":
-        shared_libs = _get_shared_libs(conanfile)
-        return _android_adb_wrapper(cmd, shared_libs)
-
-    return cmd
-
+    wrapper = wrappers.get(os_name)
+    return wrapper() if wrapper else cmd

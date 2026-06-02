@@ -1,16 +1,10 @@
 [settings]                                                                                                                                                                                                                                                                                                      
-arch=armv8                                                                                                                                                                                                                                                                                                      
-#arch_build=x86_64                                                                                                                                                                                                                                                                                               
-build_type=Release                                                                                                                                                                                                                                                                                              
-compiler=apple-clang                                                                                                                                                                                                                                                                                            
-compiler.libcxx=libc++                                                                                                                                                                                                                                                                                          
-compiler.version=15.0                                                                                                                                                                                                                                                                                           
-os=iOS                                                                                                                                                                                                                                                                                                          
-os.version=13.1                                                                                                                                                                                                                                                                                             
-#os_build=Macos                                                                                                                                                                                                                                                                                                  
-[options]                                                                                                                                                                                                                                                                                                       
-libarchive/*:with_acl=False                                                                                                                                                                                                                                                                                       
-libarchive/*:with_iconv=False                                                                                                                                                                                                                                                                                     
-libarchive/*:with_openssl=True                                                                                                                                                                                                                                                                                    
-[tool_requires]                                                                                                                                                                                                                                                                                                
-*: ios-cmake/3.1.2    
+arch=armv8
+build_type=Release
+os=iOS
+os.version=26.4
+os.sdk=iphonesimulator
+compiler=apple-clang
+compiler.version=21
+compiler.cppstd=gnu17
+compiler.libcxx=libc++
